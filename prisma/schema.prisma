@@ -1,0 +1,10 @@
+// ShopPics AI is 100% client-side (Cloudinary + localStorage) — no database is used.
+// Prisma is part of the sandbox template but intentionally unused in this app.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
