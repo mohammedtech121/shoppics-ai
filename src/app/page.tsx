@@ -84,6 +84,7 @@ export default function Home() {
         historyCount={historyEntries.length}
         onOpenHistory={() => setHistoryOpen(true)}
         onStart={startStudio}
+        onHome={() => setView('landing')}
       />
       {!configured && <ConfigNotice />}
 
@@ -95,6 +96,7 @@ export default function Home() {
           session={session}
           initialBackdropId={initialBackdropId}
           onNewPhoto={startStudio}
+          onBackHome={() => setView('landing')}
           onBackdropChange={handleBackdropChange}
         />
       )}

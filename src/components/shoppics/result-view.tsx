@@ -1,17 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft,
   Check,
   Download,
   FileImage,
+  Home,
   Info,
   Package,
   PiggyBank,
   Ruler,
-  Wand2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   BACKDROPS,
-  FALLBACK_BACKDROP_ID,
   PLATFORMS,
   beforePadUrl,
   getBackdrop,
@@ -27,7 +26,7 @@ import {
   packFilename,
   studioUrl,
 } from '@/lib/shoppics/cloudinary';
-import { downloadSellerPack, downloadUrl } from '@/lib/shoppics/download';
+import { downloadUrl } from '@/lib/shoppics/download';
 import { loadImage } from '@/lib/shoppics/image-utils';
 import type { Session } from '@/lib/shoppics/types';
 import { BeforeAfterSlider } from './before-after-slider';
@@ -36,24 +35,24 @@ interface ResultViewProps {
   session: Session;
   initialBackdropId?: string;
   onNewPhoto: () => void;
+  onBackHome: () => void;
   onBackdropChange: (backdropId: string) => void;
 }
 
 type PreviewState = { url: string; status: 'loading' | 'ok' | 'failed'; attempt: number };
 
-export function ResultView({ session, initialBackdropId, onNewPhoto, onBackdropChange }: ResultViewProps) {
+export function ResultView({ session, initialBackdropId, onNewPhoto, onBackHome, onBackdropChange }: ResultViewProps) {
   const { publicId, rec } = session;
 
   const [backdropId, setBackdropId] = useState(initialBackdropId ?? rec.backdropId);
   const [platformId, setPlatformId] = useState(rec.platformIds[0] ?? 'instagram');
-  const [genFailed, setGenFailed] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<PreviewState>({ url: '', status: 'loading', attempt: 1 });
+  const [retryNonce, setRetryNonce] = useState(0);
   const [packState, setPackState] = useState<{ busy: boolean; done: number; total: number }>({
     busy: false,
     done: 0,
     total: PLATFORMS.length,
   });
-  const genFailNotedFor = useRef<string | null>(null);
 
   const backdrop = getBackdrop(backdropId);
   const platform = getPlatform(platformId);
@@ -69,7 +68,7 @@ export function ResultView({ session, initialBackdropId, onNewPhoto, onBackdropC
     setPreview({ url: afterUrl, status: 'loading', attempt: 1 });
   }
 
-  /* Preload the after image with retries; auto-fall back if a GenAI backdrop fails. */
+  /* Preload the after image with retries (network hiccups → failed state with a working Retry). */
   useEffect(() => {
     let cancelled = false;
 
@@ -81,37 +80,16 @@ export function ResultView({ session, initialBackdropId, onNewPhoto, onBackdropC
       },
     })
       .then(() => {
-        if (!cancelled) {
-          setPreview({ url: afterUrl, status: 'ok', attempt: 1 });
-          setGenFailed((prev) => {
-            if (!prev.has(backdrop.id)) return prev;
-            const next = new Set(prev);
-            next.delete(backdrop.id);
-            return next;
-          });
-        }
+        if (!cancelled) setPreview({ url: afterUrl, status: 'ok', attempt: 1 });
       })
       .catch(() => {
-        if (cancelled) return;
-        if (backdrop.kind === 'genai') {
-          // Never show a broken image in the demo — fall back to a solid backdrop with a visible note.
-          setBackdropId(FALLBACK_BACKDROP_ID);
-          setGenFailed((prev) => new Set(prev).add(backdrop.id));
-          if (genFailNotedFor.current !== backdrop.id) {
-            genFailNotedFor.current = backdrop.id;
-            toast.warning(`GenAI “${backdrop.name}” is still generating (beta)`, {
-              description: 'Showing Studio White instead — tap that backdrop again in a moment to retry.',
-            });
-          }
-        } else {
-          setPreview({ url: afterUrl, status: 'failed', attempt: 3 });
-        }
+        if (!cancelled) setPreview({ url: afterUrl, status: 'failed', attempt: 3 });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [afterUrl, backdrop]);
+  }, [afterUrl, retryNonce]);
 
   useEffect(() => {
     onBackdropChange(backdropId);
@@ -147,27 +125,18 @@ export function ResultView({ session, initialBackdropId, onNewPhoto, onBackdropC
     if (!ok) toast.info('Opened in a new tab — save it from there.');
   }, [afterUrl, backdrop, platform]);
 
-  const retryGenBackdrop = (id: string) => {
-    setGenFailed((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    setBackdropId(id);
+  const retryPreview = () => {
+    setPreview({ url: afterUrl, status: 'loading', attempt: 1 });
+    setRetryNonce((n) => n + 1);
   };
-
-  const solidBackdrops = BACKDROPS.filter((b) => b.kind === 'solid');
-  const genBackdrops = BACKDROPS.filter((b) => b.kind === 'genai');
 
   const renderTile = (b: (typeof BACKDROPS)[number]) => {
     const selected = b.id === backdropId;
-    const failed = genFailed.has(b.id);
-    const isGen = b.kind === 'genai';
     return (
       <button
         key={b.id}
         type="button"
-        onClick={() => (failed ? retryGenBackdrop(b.id) : setBackdropId(b.id))}
+        onClick={() => setBackdropId(b.id)}
         aria-pressed={selected}
         title={b.hint}
         className={`group relative flex flex-col items-stretch gap-2 rounded-2xl p-1 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
@@ -175,29 +144,10 @@ export function ResultView({ session, initialBackdropId, onNewPhoto, onBackdropC
         }`}
       >
         <span className="relative block aspect-square w-full overflow-hidden rounded-xl">
-          {isGen ? (
-            <span
-              className={`absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br ${
-                failed ? 'from-amber-100 to-amber-200' : 'from-teal-100 via-stone-100 to-amber-100'
-              }`}
-            >
-              <Wand2
-                className={`h-6 w-6 transition group-hover:scale-110 ${failed ? 'animate-pulse text-amber-600' : 'text-teal-700'}`}
-                aria-hidden
-              />
-              <span className="absolute right-1.5 top-1.5 rounded-full bg-amber-400/90 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-amber-950">
-                beta
-              </span>
-              {failed && (
-                <span className="text-[9px] font-semibold text-amber-800">tap to retry</span>
-              )}
-            </span>
-          ) : (
-            <span
-              className="absolute inset-0 transition group-hover:scale-[1.03]"
-              style={{ backgroundColor: `#${b.hex}` }}
-            />
-          )}
+          <span
+            className="absolute inset-0 transition group-hover:scale-[1.03]"
+            style={{ backgroundColor: `#${b.hex}` }}
+          />
           {selected && (
             <span className="absolute bottom-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white shadow-md">
               <Check className="h-3.5 w-3.5" aria-hidden />
@@ -218,6 +168,16 @@ export function ResultView({ session, initialBackdropId, onNewPhoto, onBackdropC
       {/* Header row */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onBackHome}
+            className="h-9 gap-1.5 rounded-lg text-stone-500 hover:text-stone-800"
+          >
+            <Home className="h-4 w-4" aria-hidden />
+            Home
+          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -264,9 +224,7 @@ export function ResultView({ session, initialBackdropId, onNewPhoto, onBackdropC
                       className="h-2 w-2 animate-pulse rounded-full bg-emerald-400"
                       aria-hidden
                     />
-                    {backdrop.kind === 'genai'
-                      ? `GenAI is painting your backdrop… (beta, try ${preview.attempt}/3)`
-                      : 'Rendering your studio shot…'}
+                    Rendering your studio shot…
                   </span>
                 </motion.div>
               )}
@@ -284,7 +242,7 @@ export function ResultView({ session, initialBackdropId, onNewPhoto, onBackdropC
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() => setBackdropId((id) => id)}
+                    onClick={retryPreview}
                     className="rounded-xl bg-white text-stone-800 hover:bg-stone-100"
                   >
                     Retry
@@ -293,14 +251,6 @@ export function ResultView({ session, initialBackdropId, onNewPhoto, onBackdropC
               )}
             </AnimatePresence>
           </div>
-
-          {genFailed.size > 0 && (
-            <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-xs leading-relaxed text-amber-900">
-              <span className="font-semibold">GenAI backdrop note:</span>{' '}
-              {[...genFailed].map((id) => `“${getBackdrop(id).name}”`).join(', ')} was still generating on Cloudinary
-              (beta can be slow) — a solid backdrop is shown instead. Tap its tile again in a moment to retry.
-            </div>
-          )}
 
           {/* Value stat — illustrative, honestly labelled */}
           <Card className="border-emerald-200/70 bg-gradient-to-br from-emerald-50 to-white shadow-sm">
@@ -424,13 +374,10 @@ export function ResultView({ session, initialBackdropId, onNewPhoto, onBackdropC
             <CardContent className="p-5 sm:p-6">
               <div className="mb-4 flex items-center justify-between">
                 <p className="text-sm font-bold text-stone-900">Backdrop</p>
-                <p className="text-[11px] text-stone-400">solids are instant · GenAI is beta</p>
+                <p className="text-[11px] text-stone-400">4 instant looks — tap to switch</p>
               </div>
               <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-                {solidBackdrops.map(renderTile)}
-              </div>
-              <div className="mt-2.5 grid grid-cols-3 gap-2.5">
-                {genBackdrops.map(renderTile)}
+                {BACKDROPS.map(renderTile)}
               </div>
             </CardContent>
           </Card>

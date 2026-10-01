@@ -40,7 +40,7 @@ const HOW_IT_WORKS = [
   {
     icon: Palette,
     title: 'Pick a look',
-    text: '4 instant solid studio backdrops, or 3 GenAI scenes (beta — with retries and a solid fallback, so you never see a broken image).',
+    text: '4 instant studio backdrops — Studio White, Warm Ivory, Blush Pink and Soft Sage — tuned for Indian marketplace listings. Every switch is a live Cloudinary URL.',
   },
   {
     icon: Package,
@@ -52,8 +52,7 @@ const HOW_IT_WORKS = [
 const CLOUDINARY_CHIPS = [
   'Upload API (unsigned)',
   'AI Background Removal add-on',
-  'GenAI Background Replace (beta)',
-  'crop & pad sizing',
+  'b_rgb flatten & c_pad framing',
   'f_auto / q_auto',
 ];
 
@@ -129,7 +128,7 @@ export function LandingView({ onStart }: LandingViewProps) {
               transition={{ duration: 0.5, delay: 0.36 }}
               className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-stone-500"
             >
-              {['Works right in your browser', 'History stays on your device', 'GenAI features labelled honestly (beta)'].map(
+              {['Works right in your browser', 'History stays on your device', 'No signup, no server, no tracking'].map(
                 (t) => (
                   <li key={t} className="inline-flex items-center gap-1.5">
                     <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
@@ -151,7 +150,7 @@ export function LandingView({ onStart }: LandingViewProps) {
             <div className="relative overflow-hidden rounded-[2rem] border border-stone-200/90 bg-white shadow-xl shadow-stone-900/10">
               <img
                 src="/samples/story-after.jpg"
-                alt="Example studio result — jhumka earrings on a clean white studio backdrop"
+                alt="Example studio result — jhumka earrings on a warm ivory studio backdrop"
                 width={1080}
                 height={1080}
                 className="aspect-square w-full object-cover"
@@ -254,19 +253,32 @@ export function LandingView({ onStart }: LandingViewProps) {
                 <CardContent className="p-5 sm:p-6">
                   <p className="text-[13px] leading-relaxed text-amber-900">
                     <span className="font-bold">Honesty note:</span> Aisha is a fictional example seller created for
-                    this demo — the savings figure is an illustrative estimate, not a promise. The GenAI marble look
-                    below is also from this example run:
+                    this demo — the savings figure is an illustrative estimate, not a promise. Her “studio shot” is a
+                    real run of this exact pipeline: Cloudinary AI background removal → warm-ivory backdrop → 1080×1080
+                    pad. The four shipped looks:
                   </p>
-                  <img
-                    src="/samples/genprod.jpg"
-                    alt="Example of a GenAI backdrop — the same earrings on a generated marble surface"
-                    className="mt-3 aspect-square w-full rounded-xl border border-amber-200 object-cover"
-                    width={480}
-                    height={480}
-                    draggable={false}
-                  />
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {[
+                      { name: 'Studio White', hex: '#ffffff' },
+                      { name: 'Warm Ivory', hex: '#f5eee3' },
+                      { name: 'Blush Pink', hex: '#f6e3de' },
+                      { name: 'Soft Sage', hex: '#e7ede4' },
+                    ].map((b) => (
+                      <span
+                        key={b.name}
+                        className="flex items-center gap-2 rounded-xl border border-amber-200/80 bg-white/70 px-2.5 py-2"
+                      >
+                        <span
+                          className="h-6 w-6 shrink-0 rounded-lg border border-stone-200"
+                          style={{ backgroundColor: b.hex }}
+                          aria-hidden
+                        />
+                        <span className="text-[11px] font-semibold text-amber-900">{b.name}</span>
+                      </span>
+                    ))}
+                  </div>
                   <p className="mt-2 text-center text-[11px] font-medium text-amber-800">
-                    GenAI backdrop (beta) · e_gen_background_replace
+                    Instant, reliable delivery-URL transformations — every tap, no exceptions.
                   </p>
                 </CardContent>
               </Card>

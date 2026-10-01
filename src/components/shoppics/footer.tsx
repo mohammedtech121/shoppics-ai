@@ -19,7 +19,7 @@ export function Footer() {
         </div>
         <p className="text-xs leading-relaxed text-stone-400">
           Team HYDRA · Mohammed Khan · Heuristic suggestions, not computer vision · History lives in your
-          browser&apos;s localStorage · GenAI backdrops are Cloudinary beta
+          browser&apos;s localStorage · Images transformed live by Cloudinary delivery URLs
         </p>
       </div>
     </footer>

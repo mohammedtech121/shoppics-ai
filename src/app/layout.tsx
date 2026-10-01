@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'ShopPics AI — Phone photos in, studio shots out',
   description:
-    'ShopPics AI turns a phone product photo into studio-quality shots for Instagram, Meesho, Amazon & WhatsApp — powered end-to-end by Cloudinary (AI background removal, GenAI backdrops, marketplace sizing).',
+    'ShopPics AI turns a phone product photo into studio-quality shots for Instagram, Meesho, Amazon & WhatsApp — powered end-to-end by Cloudinary (AI background removal, studio backdrops, marketplace sizing).',
   keywords: [
     'ShopPics AI',
     'product photography',
